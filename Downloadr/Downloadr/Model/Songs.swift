@@ -42,33 +42,35 @@ struct Songs: Mappable {
         }
     }
     
-    static func downloadSong(url: String, completion: @escaping (Double) -> Void) {
+    static func downloadSong(_ url: String, completion: @escaping (Double) -> Void) {
         let url = url.addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryAllowed)!
         
         if let audioUrl = URL(string: url) {
-            let documentsDirectoryURL =  FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            let destinationUrl = documentsDirectoryURL.appendingPathComponent(audioUrl.lastPathComponent)
-            print(destinationUrl)
 
-            Alamofire.request(url).downloadProgress { (progress) in
-                completion(progress.fractionCompleted)
-                }.responseData { (response) in
-                    switch response.result {
-                    case .success(let value):
-                        do {
-                            print(value)
-//                            try FileManager.default.moveItem(at: response.result.value, to: destinationUrl)
-                        } catch let error as NSError {
-                            print(error.localizedDescription)
-                        }
-                    case .failure(let error):
-                        print(error)
-                    }
+            let fileUrl = self.getSaveFileUrl(fileName: url)
+            let destination: DownloadRequest.DownloadFileDestination = { _, _ in
+                return (fileUrl, [.removePreviousFile, .createIntermediateDirectories])
+            }
+            
+            Alamofire.download(audioUrl, to:destination)
+                .downloadProgress { (progress) in
+                    completion(progress.fractionCompleted)
+                }
+                .responseData { (data) in
+                    print(data)
             }
         }
     }
     
-    static func deleteSong(url: String, completion: @escaping (String?) -> Void) {
+    static func getSaveFileUrl(fileName: String) -> URL {
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let nameUrl = URL(string: fileName)
+        let fileURL = documentsURL.appendingPathComponent((nameUrl?.lastPathComponent)!)
+        NSLog(fileURL.absoluteString)
+        return fileURL;
+    }
+    
+    static func deleteSong(_ url: String, completion: @escaping (String?) -> Void) {
         let url = url.addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryAllowed)!
         if let audioUrl = URL(string: url) {
             let documentsDirectoryURL =  FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
@@ -80,6 +82,18 @@ struct Songs: Mappable {
             }
             catch let error as NSError {
                 completion(error.localizedDescription)
+            }
+        }
+    }
+    
+    static func checkForStorage(_ url: String, completion: @escaping(Bool) -> Void) {
+        let url = url.addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryAllowed)!
+        if let audioUrl = URL(string: url) {
+            let documentsDirectoryURL =  FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let destinationUrl = documentsDirectoryURL.appendingPathComponent(audioUrl.lastPathComponent)
+            
+            if FileManager.default.fileExists(atPath: destinationUrl.path) {
+                completion(true)
             }
         }
     }

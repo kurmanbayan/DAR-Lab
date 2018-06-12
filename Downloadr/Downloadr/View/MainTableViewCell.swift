@@ -19,7 +19,7 @@ class MainTableViewCell: UITableViewCell {
     
     override func awakeFromNib() {
         super.awakeFromNib()
-        downloadProgress.setProgress(0, animated: true)
+        downloadProgress.setProgress(0, animated: false)
     }
     
     @IBAction func actionBtnPressed(_ sender: UIButton) {

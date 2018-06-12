@@ -20,18 +20,29 @@ class MainViewController: UIViewController, UITableViewDelegate, UITableViewData
         
         if (type != 2) {
             self.songs[indexPath.row].opType = type
-            Songs.downloadSong(url: trackUrl) { (count) in
-                self.songs[indexPath.row].progress = Float(count)
-                DispatchQueue.main.async {
-                    self.tableView.reloadData()
-                }
-                if (Float(count) == 1.0) {
-                    self.songs[indexPath.row].opType = 2
+            DispatchQueue.main.async {
+                var state = false
+                Songs.downloadSong(trackUrl) { (count) in
+                    self.songs[indexPath.row].progress = Float(count)
+                    
+                    if let mainCell = self.tableView.cellForRow(at: indexPath) as? MainTableViewCell {
+                        mainCell.downloadProgress.setProgress(Float(count), animated: false)
+                        mainCell.checkBtnType(1)
+                    }
+                    if !state {
+                        self.tableView.reloadRows(at: [indexPath], with: .none)
+                        state = true
+                    }
+                    
+                    if (Float(count) == 1.0) {
+                        self.songs[indexPath.row].opType = 2
+                        self.tableView.reloadData()
+                    }
                 }
             }
         }
         else {
-            Songs.deleteSong(url: trackUrl) { (message) in
+            Songs.deleteSong(trackUrl) { (message) in
                 if let message = message {
                     print(message)
                 }
@@ -39,32 +50,6 @@ class MainViewController: UIViewController, UITableViewDelegate, UITableViewData
                     self.songs[indexPath.row].opType = 0
                     self.tableView.reloadData()
                 }
-            }
-        }
-//        tryToDownload(url: trackUrl)
-    }
-    
-    func tryToDownload(url: String) {
-        let url = url.addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryAllowed)!
-        if let audioUrl = URL(string: url) {
-            
-            let documentsDirectoryURL =  FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        
-            let destinationUrl = documentsDirectoryURL.appendingPathComponent(audioUrl.lastPathComponent)
-            
-            if FileManager.default.fileExists(atPath: destinationUrl.path) {
-                print("The file already exists at path")
-            } else {
-                
-                URLSession.shared.downloadTask(with: audioUrl, completionHandler: { (location, response, error) -> Void in
-                    guard let location = location, error == nil else { return }
-                    do {
-                        try FileManager.default.moveItem(at: location, to: destinationUrl)
-                        print("File moved to documents folder")
-                    } catch let error as NSError {
-                        print(error.localizedDescription)
-                    }
-                }).resume()
             }
         }
     }
@@ -101,13 +86,9 @@ class MainViewController: UIViewController, UITableViewDelegate, UITableViewData
         cell.artistNameLabel.text = songs[indexPath.row].artist
         cell.songNameLabel.text = songs[indexPath.row].title
         
-        let url = songs[indexPath.row].trackUrl.addingPercentEncoding(withAllowedCharacters: CharacterSet.urlQueryAllowed)!
-        if let audioUrl = URL(string: url) {
-            let documentsDirectoryURL =  FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            let destinationUrl = documentsDirectoryURL.appendingPathComponent(audioUrl.lastPathComponent)
-            
-            if FileManager.default.fileExists(atPath: destinationUrl.path) {
-                songs[indexPath.row].opType = 2
+        Songs.checkForStorage(songs[indexPath.row].trackUrl) { (result) in
+            if result {
+                self.songs[indexPath.row].opType = 2
             }
         }
         
